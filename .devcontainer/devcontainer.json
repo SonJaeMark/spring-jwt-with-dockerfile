@@ -1,0 +1,38 @@
+{
+  "name": "Working Spring Boot Dev Environment",
+
+  "dockerComposeFile": "docker-compose.yml",
+
+  "service": "app",
+
+  "workspaceFolder": "/workspace",
+
+  "forwardPorts": [
+    8080,
+    5432,
+    6379
+  ],
+
+  "features": {
+    "ghcr.io/devcontainers/features/git:1": {},
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+  },
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "vscjava.vscode-java-pack",
+        "vscjava.vscode-maven",
+        "vscjava.vscode-spring-boot-dashboard",
+        "vscjava.vscode-spring-initializr",
+        "formulahendry.code-runner",
+        "GitHub.vscode-pull-request-github",
+        "eamodio.gitlens",
+        "ms-azuretools.vscode-docker"
+      ]
+    }
+  },
+
+  "postCreateCommand": "git config --global --add safe.directory /workspace && mvn -v",
+  "remoteUser": "vscode"
+}

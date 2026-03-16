@@ -1,0 +1,24 @@
+spring:
+  application:
+    name: spring-jwt
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://aws-1-ap-southeast-1.pooler.supabase.com:6543/postgres?sslmode=require}
+    username: ${DB_USER:postgres.bcmejmpuchqvchvhsjcc}
+    password: ${DB_PASSWORD:D8T2nmePBcua}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 5
+      minimum-idle: 1
+      idle-timeout: 30000
+      connection-timeout: 600000
+      max-lifetime: 300000
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        '[format_sql]': true
+        '[use_sql_comments]': true
+server:
+  port: ${PORT:8080}
