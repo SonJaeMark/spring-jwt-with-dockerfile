@@ -80,6 +80,72 @@ The server listens on `PORT` (default `8080`), configurable via environment vari
 
 ---
 
+## Docker Setup (Dev Container & Compose)
+
+The project is set up to run in a **Dockerized development environment** using a Dev Container and Docker Compose.
+
+### What’s included
+
+- **`.devcontainer/Dockerfile`** – Dev container image based on `mcr.microsoft.com/devcontainers/java:1-21-bookworm` with:
+  - Java 21, Maven, Git, curl, Supabase CLI, GitHub CLI
+  - Used as the workspace where you edit and run the app (e.g. `mvn spring-boot:run` inside the container).
+
+- **`.devcontainer/docker-compose.yml`** – Compose stack with:
+  - **`app`** – Dev container (builds from the Dockerfile above), with project source mounted at `/workspace`, long-running so you can work inside it.
+  - **`postgres`** – PostgreSQL 16 with:
+    - Database: `devdb`
+    - User: `devuser`
+    - Password: `devpassword`
+    - Port: `5432`
+  - **`redis`** – Redis 7 on port `6379` (available for caching/sessions if you add it later).
+
+All services share a `backend` network.
+
+### Running with Docker
+
+1. **Using VS Code / Cursor Dev Containers**
+   - Open the project in VS Code or Cursor.
+   - When prompted, or via Command Palette → “Dev Containers: Reopen in Container”, open in the dev container.
+   - The Compose stack (app + Postgres + Redis) will start; your shell runs inside the `app` container.
+
+2. **Using Docker Compose from the host**
+   - From the project root:
+     ```bash
+     cd .devcontainer
+     docker compose up -d
+     ```
+   - Attach to the `app` service to get a shell in the workspace:
+     ```bash
+     docker compose exec app bash
+     ```
+   - Inside the container, go to the project (e.g. `/workspace` if that’s where the repo is mounted) and run:
+     ```bash
+     mvn spring-boot:run
+     ```
+
+### Database connection when using Docker Postgres
+
+When the app runs inside (or alongside) the Compose stack, point it at the `postgres` service:
+
+- **From the dev container** (same Docker network), use host `postgres` and the Compose credentials:
+  ```bash
+  export DB_URL="jdbc:postgresql://postgres:5432/devdb"
+  export DB_USER="devuser"
+  export DB_PASSWORD="devpassword"
+  mvn spring-boot:run
+  ```
+- **From the host** (e.g. running `mvn spring-boot:run` on Windows), use `localhost`:
+  ```powershell
+  $env:DB_URL="jdbc:postgresql://localhost:5432/devdb"
+  $env:DB_USER="devuser"
+  $env:DB_PASSWORD="devpassword"
+  mvn spring-boot:run
+  ```
+
+The API is then available at `http://localhost:8080` (with port mapping if the app is running inside the container and you’ve published port 8080 in Compose, or directly when running on the host).
+
+---
+
 ## Security Architecture
 
 This project uses **stateless JWT-based authentication** with Spring Security.
@@ -290,6 +356,54 @@ Authorization: Bearer <jwt-access-token>
   - Description: Delete a todo (only if owned by the current user).
 
 If the authenticated user is not the owner of the target todo, `TodoService` throws an `Unauthorized` runtime exception.
+
+---
+
+## Postman Testing
+
+You can test all API endpoints with [Postman](https://www.postman.com/). A ready-to-import collection is included in the repo.
+
+### Import the collection
+
+1. Open Postman.
+2. Click **Import** and choose the file **`postman/Spring-JWT-Todo-API.postman_collection.json`** from this project (or drag-and-drop it).
+3. The collection **Spring JWT Todo API** will appear with folders: **Auth** and **Todos**.
+
+### Using the collection
+
+**Base URL:** Set the collection variable `baseUrl` to your API root (default: `http://localhost:8080`). All requests use `{{baseUrl}}/api/todos/v1/...`.
+
+**Suggested flow:**
+
+1. **Auth**
+   - **Register** – `POST {{baseUrl}}/api/todos/v1/auth/register` with body `{"username","email","password","role"?}`. Creates a user.
+   - **Login** – `POST {{baseUrl}}/api/todos/v1/auth/login` with `{"username","password"}`. Copy the `accessToken` from the response.
+   - **Refresh** – `POST {{baseUrl}}/api/todos/v1/auth/refresh` with the refresh token as raw body to get a new access token.
+   - **Logout** – `POST {{baseUrl}}/api/todos/v1/auth/logout` with the refresh token as raw body.
+
+2. **Todos (require JWT)**
+   - Set the **Authorization** header to `Bearer <accessToken>` (you can set a collection variable `accessToken` after login and use `Bearer {{accessToken}}` in the Authorization tab).
+   - **Create** – `POST {{baseUrl}}/api/todos/v1/create` with `{"task":"..."}`.
+   - **Get all** – `GET {{baseUrl}}/api/todos/v1`.
+   - **Update** – `PUT {{baseUrl}}/api/todos/v1/update/{{todoId}}` with `{"task":"..."}`.
+   - **Mark done** – `PUT {{baseUrl}}/api/todos/v1/done/{{todoId}}`.
+   - **Delete** – `DELETE {{baseUrl}}/api/todos/v1/delete/{{todoId}}`.
+
+**Optional:** After **Login**, use a Postman test script to save the tokens and `userId` into collection variables so subsequent requests use them automatically. The included collection uses `accessToken` and `refreshToken` variables when provided.
+
+### Manual quick test (without collection file)
+
+| Action   | Method | URL | Body / Headers |
+|----------|--------|-----|----------------|
+| Register | POST   | `http://localhost:8080/api/todos/v1/auth/register` | `{"username":"john","email":"john@example.com","password":"password123"}` |
+| Login    | POST   | `http://localhost:8080/api/todos/v1/auth/login`     | `{"username":"john","password":"password123"}` → copy `accessToken` |
+| Create   | POST   | `http://localhost:8080/api/todos/v1/create`         | Header: `Authorization: Bearer <accessToken>`, Body: `{"task":"My first todo"}` |
+| Get all  | GET    | `http://localhost:8080/api/todos/v1`                | Header: `Authorization: Bearer <accessToken>` |
+| Update   | PUT    | `http://localhost:8080/api/todos/v1/update/1`       | Header: `Authorization: Bearer <accessToken>`, Body: `{"task":"Updated task"}` |
+| Mark done| PUT    | `http://localhost:8080/api/todos/v1/done/1`         | Header: `Authorization: Bearer <accessToken>` |
+| Delete   | DELETE | `http://localhost:8080/api/todos/v1/delete/1`       | Header: `Authorization: Bearer <accessToken>` |
+| Refresh  | POST   | `http://localhost:8080/api/todos/v1/auth/refresh`   | Body (raw text): paste refresh token |
+| Logout   | POST   | `http://localhost:8080/api/todos/v1/auth/logout`    | Body (raw text): paste refresh token |
 
 ---
 
