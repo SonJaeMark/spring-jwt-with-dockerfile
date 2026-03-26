@@ -32,7 +32,7 @@ public class SecurityConfig {
                         session.sessionCreationPolicy(
                                 SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/todos/v1/auth/**")
+                        .requestMatchers("/api/todos/v1/auth/**" , "/api/todos/v1/health")
                         .permitAll()
                         .anyRequest()
                         .authenticated()

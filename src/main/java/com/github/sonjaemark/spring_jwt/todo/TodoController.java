@@ -5,6 +5,7 @@ import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
+import com.github.sonjaemark.spring_jwt.dto.ApiHealthCheck;
 import com.github.sonjaemark.spring_jwt.dto.TodoRequest;
 import com.github.sonjaemark.spring_jwt.dto.TodoResponse;
 
@@ -14,6 +15,11 @@ public class TodoController {
 
     @Autowired
     private TodoService todoService;
+
+    @GetMapping("/health")
+    public ApiHealthCheck healthCheck() {
+        return new ApiHealthCheck("OK");
+    }
 
     @PostMapping("/create")
     public TodoResponse create(@RequestBody TodoRequest request) {
